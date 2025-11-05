@@ -21,7 +21,6 @@
       <button class="toggle" data-measure="timeliness">Timeliness</button>
       <button class="toggle" data-measure="accessibility">Accessibility</button>
       <button class="toggle" data-measure="completeness">Completeness</button>
-      <span class="legend small"><span class="sw" style="background:#ff4d4f"></span> 0 <span class="sw" style="background:#ffd666"></span> 50 <span class="sw" style="background:#52c41a"></span> 100</span>
     </div>
 
     <select id="uc-group"></select>
@@ -30,8 +29,6 @@
     <button id="btn-uc-manager" class="btn">Manage use cases</button>
 
     <div class="spacer"></div>
-
-    <button class="btn primary" id="btn-export">Export CSV</button>
   </div>
 
   <div class="main">
@@ -145,7 +142,10 @@
         <a class="tab" href="./reports.html">Reports</a>
         <a class="tab" href="./settings.html">Settings</a>
       </div>
-      <div class="actions"><span id="status" class="small">Ready</span></div>
+      <div class="actions">
+        <span class="legend small"><span class="sw" style="background:#ff4d4f"></span> 0 <span class="sw" style="background:#ffd666"></span> 50 <span class="sw" style="background:#52c41a"></span> 100</span>
+        <span id="status" class="small">Ready</span>
+      </div>
     </div>
   </footer>
 
