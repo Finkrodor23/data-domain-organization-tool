@@ -53,13 +53,36 @@ footer .actions{display:flex;gap:8px;align-items:center}.small{font-size:12px;co
 /* Modals: scrollable */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:30}
 .modal{background:var(--bg2);border:1px solid var(--line);border-radius:14px;min-width:340px;max-width:860px;padding:14px;max-height:92vh;overflow:auto}
-.modal h4{margin:0 0 8px 0}.modal .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.modal label{display:block;font-size:12px;color:var(--muted);margin:4px 0 6px}
-.modal input,.modal textarea,.modal select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:8px 10px;border-radius:10px;outline:none}
-.modal footer{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
-.modal .section-title{font-size:12px;color:var(--muted);margin:10px 0 0}
-.modal .fieldset{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.02)}
+.modal h4{margin:0}.modal label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+.modal input,.modal textarea,.modal select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:8px 10px;border-radius:10px;outline:none;font:inherit}
+.modal textarea{resize:vertical}
+.modal footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.modal .section-title{font-size:12px;color:var(--muted);margin:18px 0 6px;text-transform:uppercase;letter-spacing:.04em}
 .modal .vlist{display:flex;flex-direction:column;gap:6px}
+.modal-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.btn.icon{padding:6px 8px;font-size:16px;line-height:1}
+.scope-bar{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.scope-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer;font-size:12px}
+.scope-chip.active{outline:2px solid rgba(0,188,102,.45);background:linear-gradient(180deg,rgba(0,188,102,.12),rgba(0,188,102,.05))}
+.scope-action{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;align-items:center;font-size:12px;color:var(--muted)}
+.scope-action .btn{margin-left:auto}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:10px 0 0}
+.form-grid .field{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+.form-grid .field.span-2{grid-column:span 2}
+@media(max-width:640px){.form-grid .field.span-2{grid-column:span 1}}
+.form-grid.measures{margin:0;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.form-grid.measures .field{padding:10px}
+.multi-select{display:flex;flex-direction:column;gap:6px}
+.multi-select .chips{display:flex;flex-wrap:wrap;gap:6px}
+.multi-select .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:12px;cursor:pointer}
+.multi-select .chip.selected{background:linear-gradient(180deg,rgba(0,188,102,.16),rgba(0,188,102,.05));border-color:rgba(0,188,102,.55);color:#e5ffee}
+.multi-select .chip.placeholder{border-style:dashed;opacity:.45;cursor:default}
+.multi-select .actions{display:flex;gap:6px;flex-wrap:wrap}
+.multi-select .actions input{flex:1;min-width:140px}
+.multi-select.disabled{opacity:.45;pointer-events:none}
+.uc-dropdown .panel{position:absolute;left:0;right:auto;min-width:280px;max-height:50vh;overflow:auto;border:1px solid var(--line);background:var(--bg2);border-radius:12px;padding:8px;display:none;z-index:50;box-shadow:0 12px 34px rgba(0,0,0,.35)}
+.uc-dropdown .item{display:flex;align-items:center;gap:6px;padding:2px 0}
+.uc-dropdown .item input[type=checkbox]{transform:scale(.9);accent-color:var(--accent)}
 .uc-dropdown{position:relative}
 .uc-dropdown .panel{position:absolute;left:0;min-width:280px;max-height:50vh;overflow:auto;border:1px solid var(--line);background:var(--bg2);border-radius:12px;padding:8px;display:none;z-index:50}
 .uc-dropdown.open .panel{display:block}
