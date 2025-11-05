@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TDA • Data Domains (v1R2)</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <div class="header">
+    <div class="brand"><div class="logo"></div><div>TDA</div><span class="small">Data Domain Tool (v1R2)</span></div>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-open">Open XML</button>
+    <button class="btn" id="btn-save">Save XML</button>
+  </div>
+
+  <div class="toolbar">
+    <div class="toggle-group" aria-label="Measures (select one)">
+      <span class="pill">Measure:</span>
+      <button class="toggle" data-measure="quality">Quality</button>
+      <button class="toggle" data-measure="timeliness">Timeliness</button>
+      <button class="toggle" data-measure="accessibility">Accessibility</button>
+      <button class="toggle" data-measure="completeness">Completeness</button>
+      <span class="legend small"><span class="sw" style="background:#ff4d4f"></span> 0 <span class="sw" style="background:#ffd666"></span> 50 <span class="sw" style="background:#52c41a"></span> 100</span>
+    </div>
+
+    <select id="uc-group"></select>
+    <select id="use-case"></select>
+    <button id="btn-reset" class="btn ghost">Reset</button>
+    <button id="btn-uc-manager" class="btn">Manage use cases</button>
+
+    <div class="spacer"></div>
+
+    <button class="btn primary" id="btn-export">Export CSV</button>
+  </div>
+
+  <div class="main">
+    <div class="row">
+      <span class="pill">Org:</span>
+      <div id="orgbar" class="orgbar"></div>
+      <input id="search" class="search" type="text" placeholder="Search name / description / owner / storage / ingestion / frontend…" />
+    </div>
+
+    <div class="grid-domains" id="domains"></div>
+  </div>
+
+  <!-- Add Dataset Modal -->
+  <div class="modal-backdrop" id="modal-add">
+    <div class="modal">
+      <h4>Add dataset to domain</h4>
+      <form id="form-add">
+        <div class="grid">
+          <div><label>Name</label><input id="name" name="name" required/></div>
+          <div><label>Owner</label><input id="owner" name="owner"/></div>
+        </div>
+        <div style="margin-top:6px"><label>Description</label><textarea id="description" name="description" rows="2"></textarea></div>
+        <div class="grid"><div><label>Entries</label><input id="entries" name="entries" type="number" min="0"/></div></div>
+        <div class="section-title">Measures (0-100)</div>
+        <div class="grid">
+          <div><label>Quality</label><input name="quality" type="number" min="0" max="100"/></div>
+          <div><label>Timeliness</label><input name="timeliness" type="number" min="0" max="100"/></div>
+          <div><label>Accessibility</label><input name="accessibility" type="number" min="0" max="100"/></div>
+          <div><label>Completeness</label><input name="completeness" type="number" min="0" max="100"/></div>
+        </div>
+        <div class="section-title">Data &amp; Digital layer</div>
+        <div class="grid"><div id="add-storage"></div><div id="add-ingestion"></div><div id="add-frontend"></div></div>
+        <div class="section-title">Use cases (multi-select)</div><div id="add-usecases"></div>
+        <div class="section-title">Orgs</div><div id="add-orgs" class="vlist"></div>
+        <footer><button type="button" class="btn" id="add-cancel">Cancel</button><button type="submit" class="btn primary">Add Dataset</button></footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dataset Details Modal (editable, org-specific) -->
+  <div class="modal-backdrop" id="modal-details">
+    <div class="modal">
+      <h4 id="dt-name">Dataset</h4>
+      <div class="grid">
+        <div><label>Description</label><textarea id="dt-desc-in" class="fieldset" rows="2"></textarea></div>
+        <div><label>Owner</label><input id="dt-owner-in" class="fieldset"/></div>
+      </div>
+      <div class="grid">
+        <div><label>Entries</label><input id="dt-entries-in" class="fieldset" type="number" min="0"/></div>
+        <div>
+          <label>Measures</label>
+          <div class="grid">
+            <div><label>Quality</label><input id="dt-quality-in" type="number" min="0" max="100"/></div>
+            <div><label>Timeliness</label><input id="dt-timeliness-in" type="number" min="0" max="100"/></div>
+            <div><label>Accessibility</label><input id="dt-accessibility-in" type="number" min="0" max="100"/></div>
+            <div><label>Completeness</label><input id="dt-completeness-in" type="number" min="0" max="100"/></div>
+          </div>
+        </div>
+      </div>
+      <div class="section-title">Data &amp; Digital layer</div>
+      <div class="grid">
+        <div><label>Storage</label><select id="dt-storage-sel"></select></div>
+        <div><label>Ingestion</label><select id="dt-ingestion-sel"></select></div>
+        <div><label>Frontend</label><select id="dt-frontend-sel"></select></div>
+      </div>
+      <div class="section-title">Organization view</div>
+      <div class="grid">
+        <div><label>Organization</label><select id="dt-org"></select></div>
+        <div><label>Membership</label><div id="dt-membership" class="fieldset"></div></div>
+      </div>
+      <div class="section-title">Use cases</div><div id="dt-usecases"></div>
+      <footer>
+        <button class="btn danger" id="dt-delete">Delete dataset</button>
+        <div class="spacer"></div>
+        <button class="btn" id="dt-close">Close</button>
+        <button class="btn primary" id="dt-save">Save</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Use-case Manager Modal -->
+  <div class="modal-backdrop" id="modal-ucm">
+    <div class="modal">
+      <h4>Use case manager</h4>
+      <div id="ucm-body"></div>
+      <footer><button class="btn" id="ucm-close">Close</button></footer>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-backdrop" id="modal-settings">
+    <div class="modal">
+      <h4>Design settings</h4>
+      <div class="grid">
+        <div><label>Background from</label><input id="bg-from" type="color" value="#0a0e12"/></div>
+        <div><label>Background to</label><input id="bg-to" type="color" value="#0c1116"/></div>
+        <div><label>Accent</label><input id="accent" type="color" value="#00bc66"/></div>
+        <div><label>Domain columns</label><input id="cols" type="number" min="1" max="6" value="5"/></div>
+      </div>
+      <div class="section-title">Heatmap (red→yellow→green)</div>
+      <div class="grid"><div><label>0%</label><input id="stop-min" type="color" value="#ff4d4f"/></div><div><label>50%</label><input id="stop-mid" type="color" value="#ffd666"/></div><div><label>100%</label><input id="stop-max" type="color" value="#52c41a"/></div></div>
+      <footer><button class="btn" id="open-config">Open ui-config.xml</button><button class="btn" id="save-config">Save ui-config.xml</button><div class="spacer"></div><button class="btn" onclick="document.getElementById('modal-settings').classList.remove('show')">Close</button><button class="btn primary" id="apply-theme">Apply</button></footer>
+    </div>
+  </div>
+
+  <footer class="navbar">
+    <div class="wrap">
+      <div class="tabs">
+        <a class="tab active" href="./data-domains.html">Domains</a>
+        <a class="tab" href="./compare.html">Compare</a>
+        <a class="tab" href="./reports.html">Reports</a>
+        <a class="tab" href="./settings.html">Settings</a>
+      </div>
+      <div class="actions"><span id="status" class="small">Ready</span></div>
+    </div>
+  </footer>
+
+  <button id="fab-settings" class="fab-settings" title="Settings">⚙</button>
+
+  <script src="./assets/config.js"></script>
+  <script src="./assets/domains.v1r2.js"></script>
+</body>
+</html>

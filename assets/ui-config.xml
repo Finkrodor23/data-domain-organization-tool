@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uiConfig>
+  <meta><version id="u0002"/><updated>2025-01-01T00:00:00Z</updated></meta>
+  <theme>
+    <background mode="gradient"><from>#0a0e12</from><to>#0c1116</to><accent>#00bc66</accent></background>
+    <colors><card>#131923</card><line>#202a36</line><text>#f1f5f9</text><muted>#9aa7b3</muted></colors>
+    <heatmap><stop at="0" color="#ff4d4f"/><stop at="50" color="#ffd666"/><stop at="100" color="#52c41a"/></heatmap>
+    <layout><domainColumns>5</domainColumns></layout>
+  </theme>
+  <vocabularies>
+    <storages><value>SharePoint</value><value>SQL</value><value>Snowflake</value><value>Data Lake</value><value>S3</value><value>Postgres</value><value>ERP</value><value>Vendor API</value><value>Time-series DB</value></storages>
+    <ingestions><value>Streaming</value><value>Daily</value><value>Nightly</value><value>Monthly</value><value>Weekly ETL</value><value>Batch hourly</value><value>CDC</value></ingestions>
+    <frontends><value>Power BI</value><value>Streamlit</value><value>Web App</value><value>Looker</value><value>Tableau</value></frontends>
+  </vocabularies>
+</uiConfig>

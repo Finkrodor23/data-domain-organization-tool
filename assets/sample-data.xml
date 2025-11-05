@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tdadata>
+  <meta><name>TDA Data Catalog</name><version id="v1002"/><updated>2025-01-01T00:00:00Z</updated></meta>
+  <orgs><org id="AFI" name="AFI" color="#2dd4bf"/><org id="ADG" name="ADG" color="#22c55e"/><org id="RH" name="RH" color="#60a5fa"/></orgs>
+  <useCaseGroups>
+    <group id="genai" name="GenAI"><useCase id="customer-bot" name="Customer Bot"/><useCase id="gen-knowledge" name="Knowledge Assistant"/></group>
+    <group id="churn" name="Churn Reduction"><useCase id="churn-predict" name="Churn Prediction"/></group>
+    <group id="service" name="Service"><useCase id="ticket-routing" name="Ticket Routing"/></group>
+  </useCaseGroups>
+  <domains>
+    <domain id="external" name="External">
+      <set id="market-estimates"><name>Market Global Estimates</name><description>Third-party market data</description><owner>Strategy</owner><entries>12000</entries>
+        <measures quality="72" timeliness="60" accessibility="55" completeness="78"/>
+        <orgRefs><org ref="RH"/></orgRefs>
+        <useCaseRefs><useCase ref="churn/churn-predict"/></useCaseRefs>
+        <layer><storage>Vendor API</storage><ingestion>Monthly</ingestion><frontend>Streamlit</frontend></layer>
+        <orgData org="RH">
+          <owner>Strategy RH</owner>
+          <entries>12000</entries>
+          <measures quality="72" timeliness="60" accessibility="55" completeness="78"/>
+          <layer><storage>Vendor API</storage><ingestion>Monthly</ingestion><frontend>Streamlit</frontend></layer>
+          <description>RH-specific market feed</description>
+        </orgData>
+      </set>
+    </domain>
+    <domain id="consumer" name="Consumer">
+      <set id="clickstream"><name>Clickstream Data</name><description>Web/app events</description><owner>Digital Analytics</owner><entries>358000000</entries>
+        <measures quality="86" timeliness="98" accessibility="65" completeness="77"/>
+        <orgRefs><org ref="AFI"/><org ref="RH"/></orgRefs>
+        <useCaseRefs><useCase ref="genai/customer-bot"/></useCaseRefs>
+        <layer><storage>Data Lake</storage><ingestion>Streaming</ingestion><frontend>Web App</frontend></layer>
+      </set>
+    </domain>
+  </domains>
+</tdadata>

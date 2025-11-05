@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="./assets/styles.css"/><title>Reports</title></head>
+<body><div class="header"><div class="brand"><div class="logo"></div><div>TDA</div><span class="small">Reports</span></div><div class="spacer"></div><a href="./data-domains.html" class="btn">Back to Domains</a><button class="btn" id="btn-settings">Design settings</button></div>
+<div class="main"><div style="padding:16px;border:1px dashed var(--line);border-radius:12px;background:var(--bg2)"><h2 style="margin-top:0">Reports</h2><p class="small">This page inherits the theme from ui-config.xml.</p></div></div>
+<footer class="navbar"><div class="wrap"><div class="tabs"><a class="tab" href="./data-domains.html">Domains</a><a class="tab active" href="#">This</a></div><div class="actions"><span class="small">Ready</span></div></div></footer>
+<button id="fab-settings" class="fab-settings" title="Settings">⚙</button>
+<script src="./assets/config.js"></script>
+<script>document.addEventListener('DOMContentLoaded',async()=>{await loadDefaultUIConfig();document.getElementById('fab-settings').addEventListener('click',()=>{document.getElementById('modal-settings')?.classList.add('show')});});</script></body></html>
