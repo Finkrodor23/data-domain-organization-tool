@@ -98,13 +98,56 @@ function renderFilters(){
 }
 function openUseCaseManager(){
   const m=$('#modal-ucm'); m.classList.add('show'); const b=$('#ucm-body'); b.innerHTML='';
-  const add=h('div',{class:'fieldset'}, h('div',{class:'grid'}, h('div',{},h('label',{},'Group ID'),h('input',{id:'ucm-gid',placeholder:'e.g., risk'})), h('div',{},h('label',{},'Display name'),h('input',{id:'ucm-gname',placeholder:'Risk'}))), h('div',{style:'text-align:right;margin-top:8px'}, h('button',{class:'btn primary',onclick:()=>{ const id=$('#ucm-gid').value.trim(); const name=$('#ucm-gname').value.trim()||id; if(!id) return; if(state.data.ucGroups[id]) return alert('exists'); state.data.ucGroups[id]={id,name,useCases:{}}; openUseCaseManager(); }}, 'Add group')));
-  b.appendChild(add);
-  for(const g of Object.values(state.data.ucGroups)){
-    const ul=h('ul',{}); for(const u of Object.values(g.useCases)){ ul.appendChild(h('li',{}, `${u.name} (${u.id}) `, h('button',{class:'btn',onclick:()=>{ if(confirm('Remove use case?')){ delete state.data.ucGroups[g.id].useCases[u.id]; openUseCaseManager(); } }}, 'Remove'))); }
-    const list=h('div',{class:'fieldset',style:'margin-top:8px'}, h('h4',{}, g.name), ul,
-      h('div',{class:'grid',style:'margin-top:8px'}, h('div',{},h('label',{},'Use case ID'), h('input',{id:`uc-${g.id}-id`,placeholder:'e.g., churn-predict'})), h('div',{},h('label',{},'Display name'), h('input',{id:`uc-${g.id}-name`,placeholder:'Churn Prediction'}))),
-      h('div',{style:'text-align:right;margin-top:6px'}, h('button',{class:'btn',onclick:()=>{ const id=$(`#uc-${g.id}-id`).value.trim(); const name=$(`#uc-${g.id}-name`).value.trim()||id; if(!id) return; state.data.ucGroups[g.id].useCases[id]={id,name,groupId:g.id}; openUseCaseManager(); }}, 'Add use case'))
+  const gidInput=h('input',{placeholder:'e.g., risk'});
+  const gnameInput=h('input',{placeholder:'Risk'});
+  const addGroup=h('div',{class:'fieldset'},
+    h('div',{class:'grid'},
+      h('div',{},h('label',{},'Group ID'), gidInput),
+      h('div',{},h('label',{},'Display name'), gnameInput)
+    ),
+    h('div',{style:'text-align:right;margin-top:8px'},
+      h('button',{class:'btn primary',onclick:()=>{
+        const id=gidInput.value.trim();
+        const name=gnameInput.value.trim()||id;
+        if(!id) return;
+        if(state.data.ucGroups[id]) return alert('exists');
+        state.data.ucGroups[id]={id,name,useCases:{}};
+        gidInput.value='';
+        gnameInput.value='';
+        openUseCaseManager();
+      }}, 'Add group')
+    )
+  );
+  b.appendChild(addGroup);
+  const groups=Object.values(state.data.ucGroups).sort((a,b)=>a.name.localeCompare(b.name));
+  for(const g of groups){
+    const ul=h('ul',{});
+    const useCases=Object.values(g.useCases).sort((a,b)=>a.name.localeCompare(b.name));
+    for(const u of useCases){
+      ul.appendChild(h('li',{}, `${u.name} (${u.id}) `,
+        h('button',{class:'btn',onclick:()=>{ if(confirm('Remove use case?')){ delete state.data.ucGroups[g.id].useCases[u.id]; openUseCaseManager(); } }}, 'Remove')
+      ));
+    }
+    const ucIdInput=h('input',{placeholder:'e.g., churn-predict'});
+    const ucNameInput=h('input',{placeholder:'Churn Prediction'});
+    const list=h('div',{class:'fieldset',style:'margin-top:8px'},
+      h('h4',{}, g.name),
+      ul,
+      h('div',{class:'grid',style:'margin-top:8px'},
+        h('div',{},h('label',{},'Use case ID'), ucIdInput),
+        h('div',{},h('label',{},'Display name'), ucNameInput)
+      ),
+      h('div',{style:'text-align:right;margin-top:6px'},
+        h('button',{class:'btn',onclick:()=>{
+          const id=ucIdInput.value.trim();
+          const name=ucNameInput.value.trim()||id;
+          if(!id) return;
+          state.data.ucGroups[g.id].useCases[id]={id,name,groupId:g.id};
+          ucIdInput.value='';
+          ucNameInput.value='';
+          openUseCaseManager();
+        }}, 'Add use case')
+      )
     );
     b.appendChild(list);
   }
@@ -255,4 +298,14 @@ async function exportCSV(){if(!state.data)return alert('Load or create data firs
 function openSettings(){const m=$('#modal-settings'); m.classList.add('show'); const c=UI.data; if(!c) return; $('#bg-from').value=c.theme.background.from; $('#bg-to').value=c.theme.background.to; $('#accent').value=c.theme.background.accent; $('#cols').value=c.theme.layout.domainColumns; $('#stop-min').value=c.theme.heatmap[0]?.color||'#ff4d4f'; $('#stop-mid').value=c.theme.heatmap[1]?.color||'#ffd666'; $('#stop-max').value=c.theme.heatmap[c.theme.heatmap.length-1]?.color||'#52c41a'; $('#apply-theme').onclick=()=>{ c.theme.background.from=$('#bg-from').value; c.theme.background.to=$('#bg-to').value; c.theme.background.accent=$('#accent').value; c.theme.layout.domainColumns=Number($('#cols').value)||5; c.theme.heatmap=[{at:0,color:$('#stop-min').value},{at:50,color:$('#stop-mid').value},{at:100,color:$('#stop-max').value}]; applyTheme(c); setStatus('Applied theme'); m.classList.remove('show'); }; $('#open-config').onclick=async()=>{ await openUIConfig(); setStatus('Opened config'); }; $('#save-config').onclick=async()=>{ await saveUIConfig(); setStatus('Saved config'); };}
 async function boot(){await loadDefaultUIConfig(); try{const r=await fetch('./assets/sample-data.xml',{cache:'no-store'}); if(r.ok){const t=await r.text(); state.xmlDoc=parseXML(t); state.data=loadModel(state.xmlDoc); render(); }}catch(e){ setStatus('Failed to load sample-data.xml'); }
   $('#btn-open').onclick=openXML; $('#btn-save').onclick=saveXML; $('#fab-settings').onclick=openSettings; $('#btn-settings').onclick=openSettings; }
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    const open=$$('.modal-backdrop.show');
+    const top=open[open.length-1];
+    if(top){
+      e.preventDefault();
+      top.classList.remove('show');
+    }
+  }
+});
 document.addEventListener('DOMContentLoaded',boot);
