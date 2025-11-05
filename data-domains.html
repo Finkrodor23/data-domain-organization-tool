@@ -96,7 +96,7 @@
       </div>
       <div class="section-title">Organization view</div>
       <div class="grid">
-        <div><label>Organization</label><select id="dt-org"></select></div>
+        <div><label>Organization</label><div id="dt-orgs" class="org-scope"></div></div>
         <div><label>Membership</label><div id="dt-membership" class="fieldset"></div></div>
       </div>
       <div class="section-title">Use cases</div><div id="dt-usecases"></div>
@@ -128,8 +128,6 @@
         <div><label>Accent</label><input id="accent" type="color" value="#00bc66"/></div>
         <div><label>Domain columns</label><input id="cols" type="number" min="1" max="6" value="5"/></div>
       </div>
-      <div class="section-title">Heatmap (red→yellow→green)</div>
-      <div class="grid"><div><label>0%</label><input id="stop-min" type="color" value="#ff4d4f"/></div><div><label>50%</label><input id="stop-mid" type="color" value="#ffd666"/></div><div><label>100%</label><input id="stop-max" type="color" value="#52c41a"/></div></div>
       <footer><button class="btn" id="open-config">Open ui-config.xml</button><button class="btn" id="save-config">Save ui-config.xml</button><div class="spacer"></div><button class="btn" onclick="document.getElementById('modal-settings').classList.remove('show')">Close</button><button class="btn primary" id="apply-theme">Apply</button></footer>
     </div>
   </div>
@@ -143,9 +141,11 @@
         <a class="tab" href="./settings.html">Settings</a>
       </div>
       <div class="actions">
-        <span class="legend small"><span class="sw" style="background:#ff4d4f"></span> 0 <span class="sw" style="background:#ffd666"></span> 50 <span class="sw" style="background:#52c41a"></span> 100</span>
         <span id="status" class="small">Ready</span>
       </div>
+    </div>
+    <div class="legend-footer small">
+      <span class="legend"><span class="sw" style="background:#ff4d4f"></span> 0 <span class="sw" style="background:#ffd666"></span> 50 <span class="sw" style="background:#52c41a"></span> 100</span>
     </div>
   </footer>
 
