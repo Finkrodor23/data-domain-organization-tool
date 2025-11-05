@@ -3,6 +3,8 @@ const $=(s,c=document)=>c.querySelector(s), $$=(s,c=document)=>Array.from(c.quer
 const state={xmlHandle:null,xmlDoc:null,data:null,filters:{measure:null,ucGroup:'all',useCase:'all',org:'all',q:''}};
 function h(t,a={},...ch){const e=document.createElement(t);for(const[k,v]of Object.entries(a||{})){if(k==='class')e.className=v;else if(k==='style')e.setAttribute('style',v);else if(k.startsWith('on')&&typeof v==='function')e.addEventListener(k.substring(2),v);else e.setAttribute(k,v)}for(const c of ch){if(c==null)continue;if(typeof c==='string')e.appendChild(document.createTextNode(c));else e.appendChild(c)}return e}
 function parseXML(x){const d=new DOMParser().parseFromString(x,'application/xml');if(d.querySelector('parsererror'))throw new Error('Invalid XML');return d}
+function ensureStateData(){if(!state.data){state.data={version:'v0000',orgs:{},ucGroups:{},domains:[],datasets:{}};}else{state.data.orgs=state.data.orgs||{};state.data.ucGroups=state.data.ucGroups||{};state.data.domains=state.data.domains||[];state.data.datasets=state.data.datasets||{};}}
+const slugify=v=>(v||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 const xmlText=(e,s,d='')=>{const n=e.querySelector(s);return n?(n.textContent||'').trim():d}, xmlAttr=(e,n,d='')=>e.hasAttribute(n)?e.getAttribute(n):d;
 /* Load model (with per-org overrides) */
 function loadModel(doc){
@@ -225,6 +227,7 @@ function rebuildDropdownWithAdd(container,label,options,current,onChange){
   container.appendChild(lab); container.appendChild(row);
 }
 function openAddDatasetModal(domainId){
+  ensureStateData();
   const m=$('#modal-add'); m.classList.add('show'); const f=$('#form-add'); f.reset(); f.dataset.domainId=domainId;
   rebuildDropdownWithAdd($('#add-storage'),'Storage',UI.data?.vocab?.storages||[], '', v=>f.dataset.storage=v);
   rebuildDropdownWithAdd($('#add-ingestion'),'Ingestion',UI.data?.vocab?.ingestions||[], '', v=>f.dataset.ingestion=v);
@@ -245,6 +248,15 @@ function openAddDatasetModal(domainId){
     m.classList.remove('show'); render();
   };
 }
+
+function openAddDomainModal(){
+  ensureStateData();
+  const m=$('#modal-add-domain'); const f=$('#form-add-domain'); if(!m||!f)return; f.reset();
+  const name=$('#domain-name'), idInput=$('#domain-id'); if(name)name.value=''; if(idInput)idInput.value='';
+  m.classList.add('show'); if(name)name.focus();
+  const cancel=$('#add-domain-cancel'); if(cancel)cancel.onclick=()=>m.classList.remove('show');
+  f.onsubmit=e=>{e.preventDefault(); const domainName=(name?.value||'').trim(); let domainId=(idInput?.value||'').trim(); if(!domainName){alert('Domain name is required.'); name?.focus(); return;} domainId=slugify(domainId||domainName); if(!domainId){alert('Domain identifier is required.'); idInput?.focus(); return;} if(state.data.domains.some(d=>d.id===domainId)){alert('Domain identifier already exists.'); idInput?.focus(); return;} state.data.domains.push({id:domainId,name:domainName,sets:[]}); m.classList.remove('show'); render();};
+}
 /* File operations + CSV */
 async function openXML(){try{const[h]=await window.showOpenFilePicker({types:[{description:'XML',accept:{'text/xml':['.xml']}}]}); state.xmlHandle=h; const text=await (await h.getFile()).text(); state.xmlDoc=parseXML(text); state.data=loadModel(state.xmlDoc); render();}catch(e){if(e.name!=='AbortError')alert('Open failed: '+e.message)}}
 async function saveXML(){if(!state.data) return alert('Nothing to save'); const prev=state.data.version||'v0000'; const ts=new Date().toISOString().replace(/[-:.]/g,'').slice(0,15); state.data.version='v'+ts; const xml=serializeModel(state.data); if(state.xmlHandle){const w=await state.xmlHandle.createWritable(); await w.write(xml); await w.close();} else { const h=await window.showSaveFilePicker({suggestedName:'tda-data.xml',types:[{description:'XML',accept:{'text/xml':['.xml']}}]}); state.xmlHandle=h; const w=await h.createWritable(); await w.write(xml); await w.close(); } setStatus(`Saved ${prev} → ${state.data.version}`);}
@@ -254,5 +266,5 @@ async function exportCSV(){if(!state.data)return alert('Load or create data firs
 /* Settings modal */
 function openSettings(){const m=$('#modal-settings'); m.classList.add('show'); const c=UI.data; if(!c) return; $('#bg-from').value=c.theme.background.from; $('#bg-to').value=c.theme.background.to; $('#accent').value=c.theme.background.accent; $('#cols').value=c.theme.layout.domainColumns; $('#stop-min').value=c.theme.heatmap[0]?.color||'#ff4d4f'; $('#stop-mid').value=c.theme.heatmap[1]?.color||'#ffd666'; $('#stop-max').value=c.theme.heatmap[c.theme.heatmap.length-1]?.color||'#52c41a'; $('#apply-theme').onclick=()=>{ c.theme.background.from=$('#bg-from').value; c.theme.background.to=$('#bg-to').value; c.theme.background.accent=$('#accent').value; c.theme.layout.domainColumns=Number($('#cols').value)||5; c.theme.heatmap=[{at:0,color:$('#stop-min').value},{at:50,color:$('#stop-mid').value},{at:100,color:$('#stop-max').value}]; applyTheme(c); setStatus('Applied theme'); m.classList.remove('show'); }; $('#open-config').onclick=async()=>{ await openUIConfig(); setStatus('Opened config'); }; $('#save-config').onclick=async()=>{ await saveUIConfig(); setStatus('Saved config'); };}
 async function boot(){await loadDefaultUIConfig(); try{const r=await fetch('./assets/sample-data.xml',{cache:'no-store'}); if(r.ok){const t=await r.text(); state.xmlDoc=parseXML(t); state.data=loadModel(state.xmlDoc); render(); }}catch(e){ setStatus('Failed to load sample-data.xml'); }
-  $('#btn-open').onclick=openXML; $('#btn-save').onclick=saveXML; $('#fab-settings').onclick=openSettings; $('#btn-settings').onclick=openSettings; }
+  $('#btn-open').onclick=openXML; $('#btn-save').onclick=saveXML; const addDomain=$('#btn-add-domain'); if(addDomain) addDomain.onclick=openAddDomainModal; $('#fab-settings').onclick=openSettings; $('#btn-settings').onclick=openSettings; }
 document.addEventListener('DOMContentLoaded',boot);

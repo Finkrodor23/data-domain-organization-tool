@@ -12,6 +12,7 @@
     <div class="spacer"></div>
     <button class="btn" id="btn-open">Open XML</button>
     <button class="btn" id="btn-save">Save XML</button>
+    <button class="btn primary" id="btn-add-domain">+ Domain</button>
   </div>
 
   <div class="toolbar">
@@ -64,6 +65,23 @@
         <div class="section-title">Use cases (multi-select)</div><div id="add-usecases"></div>
         <div class="section-title">Orgs</div><div id="add-orgs" class="vlist"></div>
         <footer><button type="button" class="btn" id="add-cancel">Cancel</button><button type="submit" class="btn primary">Add Dataset</button></footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Domain Modal -->
+  <div class="modal-backdrop" id="modal-add-domain">
+    <div class="modal">
+      <h4>Add data domain</h4>
+      <form id="form-add-domain">
+        <div class="grid">
+          <div><label>Name</label><input id="domain-name" name="name" required /></div>
+          <div><label>Identifier</label><input id="domain-id" name="id" placeholder="auto-generated" /></div>
+        </div>
+        <footer>
+          <button type="button" class="btn" id="add-domain-cancel">Cancel</button>
+          <button type="submit" class="btn primary">Add Domain</button>
+        </footer>
       </form>
     </div>
   </div>
