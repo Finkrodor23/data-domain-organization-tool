@@ -27,7 +27,7 @@
     <select id="uc-group"></select>
     <select id="use-case"></select>
     <button id="btn-reset" class="btn ghost">Reset</button>
-    <button id="btn-uc-manager" class="btn">Manage use cases</button>
+    <button id="btn-uc-manager" class="btn primary">Manage use cases</button>
 
     <div class="spacer"></div>
   </div>
@@ -143,7 +143,7 @@
 
   <!-- Use-case Manager Modal -->
   <div class="modal-backdrop" id="modal-ucm">
-    <div class="modal">
+    <div class="modal modal-ucm">
       <h4>Use case manager</h4>
       <div id="ucm-body"></div>
       <footer><button class="btn" id="ucm-close">Close</button></footer>
@@ -182,6 +182,9 @@
   </footer>
 
   <button id="fab-settings" class="fab-settings" title="Settings">⚙</button>
+
+  <input id="xml-file-input" type="file" accept=".xml,text/xml" hidden />
+  <div id="drop-overlay" class="drop-overlay"><div class="drop-overlay-inner">Drop XML file to load</div></div>
 
   <script src="./assets/config.js"></script>
   <script src="./assets/domains.v1r2.js"></script>
