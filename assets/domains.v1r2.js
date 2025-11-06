@@ -2,8 +2,11 @@
 const $=(s,c=document)=>c.querySelector(s), $$=(s,c=document)=>Array.from(c.querySelectorAll(s));
 const state={xmlHandle:null,xmlDoc:null,data:null,filters:{measure:null,ucGroup:'all',useCase:'all',org:'all',q:''}};
 function h(t,a={},...ch){const e=document.createElement(t);for(const[k,v]of Object.entries(a||{})){if(k==='class')e.className=v;else if(k==='style')e.setAttribute('style',v);else if(k.startsWith('on')&&typeof v==='function')e.addEventListener(k.substring(2),v);else e.setAttribute(k,v)}for(const c of ch){if(c==null)continue;if(typeof c==='string')e.appendChild(document.createTextNode(c));else e.appendChild(c)}return e}
-function parseXML(x){const d=new DOMParser().parseFromString(x,'application/xml');if(d.querySelector('parsererror'))throw new Error('Invalid XML');return d}
+function parseXML(x){const d=new DOMParser().parseFromString(x,'application/xml');const err=d.querySelector('parsererror');if(err){const msg=(err.textContent||'Invalid XML').replace(/\s+/g,' ').trim();throw new Error(msg||'Invalid XML document');}return d}
 function ensureStateData(){if(!state.data){state.data={version:'v0000',orgs:{},ucGroups:{},domains:[],datasets:{}};}else{state.data.orgs=state.data.orgs||{};state.data.ucGroups=state.data.ucGroups||{};state.data.domains=state.data.domains||[];state.data.datasets=state.data.datasets||{};}}
+function getValidUseCaseRefs(){ensureStateData();const refs=new Set;for(const g of Object.values(state.data.ucGroups||{})){for(const u of Object.values(g.useCases||{})){refs.add(`${g.id}/${u.id}`);}}return refs}
+function cleanDatasetUseCaseRefs(){if(!state.data)return;const valid=getValidUseCaseRefs();for(const ds of Object.values(state.data.datasets||{})){if(Array.isArray(ds.useCases)){ds.useCases=ds.useCases.filter(ref=>valid.has(ref));}else if(ds.useCases){ds.useCases=[];}}if(state.filters){if(state.filters.useCase&&state.filters.useCase!=='all'&&!valid.has(state.filters.useCase)){state.filters.useCase='all';}if(state.filters.ucGroup&&state.filters.ucGroup!=='all'&&!state.data.ucGroups[state.filters.ucGroup]){state.filters.ucGroup='all';}}}
+function notifyUseCasesChanged(){if(!state.data)return;cleanDatasetUseCaseRefs();document.dispatchEvent(new CustomEvent('tda:usecases-changed'));render();}
 const slugify=v=>(v||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 const xmlText=(e,s,d='')=>{const n=e.querySelector(s);return n?(n.textContent||'').trim():d}, xmlAttr=(e,n,d='')=>e.hasAttribute(n)?e.getAttribute(n):d;
 const textToList=v=>{if(!v) return [];return String(v).split(/[|,\n]/).map(s=>s.trim()).filter(Boolean);};
@@ -91,13 +94,28 @@ function serializeModel(m){
 }
 function setStatus(m){const s=$('#status');if(s)s.textContent=m} window.setStatus=setStatus;
 /* Filters & manager button */
+function removeUseCaseReferences(groupId,useCaseId){if(!state.data)return;const ref=`${groupId}/${useCaseId}`;for(const ds of Object.values(state.data.datasets||{})){if(Array.isArray(ds.useCases)&&ds.useCases.includes(ref)){ds.useCases=ds.useCases.filter(v=>v!==ref);}}if(state.filters?.useCase===ref)state.filters.useCase='all';}
+function generateUseCaseId(group){const ids=Object.keys(group.useCases||{});let next=Math.max(0,...ids.map(id=>{const numeric=Number(id.replace(/[^0-9]/g,''));return Number.isFinite(numeric)?numeric:0;}))+1;let candidate=String(next||1);while(group.useCases[candidate]){next+=1;candidate=String(next);}return candidate;}
+function renderUseCaseManagerContent(container){ensureStateData();if(!container)return;container.innerHTML='';const grid=h('div',{class:'ucm-grid'});const groups=Object.values(state.data.ucGroups||{}).sort((a,b)=>(a.name||a.id).localeCompare(b.name||b.id));if(!groups.length){grid.appendChild(h('div',{class:'ucm-empty-card'},'No use case groups yet. Add one below.'));}
+  for(const g of groups){const title=h('h4',{},g.name||g.id);const nameInput=h('input',{value:g.name||'',placeholder:'Display name'});nameInput.onchange=e=>{const prev=g.name||g.id;const next=e.target.value.trim()||prev;g.name=next;notifyUseCasesChanged();renderUseCaseManagerContent(container);};
+    const card=h('div',{class:'ucm-card'}, h('div',{class:'ucm-group-header'}, title, nameInput));
+    const list=h('div',{class:'ucm-usecases'});const cases=Object.values(g.useCases||{}).sort((a,b)=>(a.name||a.id).localeCompare(b.name||b.id));if(!cases.length){list.appendChild(h('div',{class:'ucm-empty-card'},'No use cases in this group yet.'));}
+    for(const u of cases){const row=h('div',{class:'ucm-usecase'});const ucInput=h('input',{value:u.name||'',placeholder:'Use case name'});ucInput.onchange=e=>{const prev=u.name||u.id;const next=e.target.value.trim()||prev;u.name=next;notifyUseCasesChanged();renderUseCaseManagerContent(container);};
+      const removeBtn=h('button',{class:'btn danger',type:'button',onclick:()=>{if(!confirm(`Remove use case "${u.name}"?`))return;delete g.useCases[u.id];removeUseCaseReferences(g.id,u.id);notifyUseCasesChanged();renderUseCaseManagerContent(container);}},'Remove');
+      row.appendChild(ucInput);row.appendChild(removeBtn);list.appendChild(row);}card.appendChild(list);
+    const addInput=h('input',{placeholder:'New use case name'});const addBtn=h('button',{class:'btn primary',type:'button',onclick:()=>{const name=addInput.value.trim();if(!name){addInput.focus();return;}g.useCases=g.useCases||{};const id=generateUseCaseId(g);g.useCases[id]={id,name,groupId:g.id};addInput.value='';notifyUseCasesChanged();renderUseCaseManagerContent(container);}},'Add use case');
+    card.appendChild(h('div',{class:'ucm-actions'}, addInput, addBtn));grid.appendChild(card);}const gidInput=h('input',{placeholder:'Group identifier (e.g., risk)'});const gnameInput=h('input',{placeholder:'Display name'});
+  const addGroupBtn=h('button',{class:'btn primary',type:'button',onclick:()=>{const id=gidInput.value.trim();if(!id){gidInput.focus();return;}if(state.data.ucGroups[id]){alert('Group already exists');gidInput.focus();return;}const name=gnameInput.value.trim()||id;state.data.ucGroups[id]={id,name,useCases:{}};gidInput.value='';gnameInput.value='';notifyUseCasesChanged();renderUseCaseManagerContent(container);}},'Add group');
+  const addGroup=h('div',{class:'ucm-card ucm-add-group'},h('h5',{},'Add use case group'),h('div',{class:'ucm-actions'},gidInput,gnameInput,addGroupBtn));grid.appendChild(addGroup);container.appendChild(grid);}
+function getUseCaseLabel(ref){if(!ref)return null;const [gid,uid]=ref.split('/');const group=state.data?.ucGroups?.[gid];const uc=group?.useCases?.[uid];if(group&&uc){const gLabel=group.name||group.id;const uLabel=uc.name||uc.id;return `${gLabel} / ${uLabel}`;}return null;}
 function renderFilters(){
   $$('.toggle[data-measure]').forEach(b=>{const m=b.getAttribute('data-measure');b.classList.toggle('active',state.filters.measure===m);b.onclick=()=>{state.filters.measure=state.filters.measure===m?null:m;render()}});
   const gSel=$('#uc-group'),uSel=$('#use-case'); gSel.innerHTML=''; uSel.innerHTML='';
-  gSel.appendChild(h('option',{value:'all'},'Use case group: All')); for(const g of Object.values(state.data.ucGroups)) gSel.appendChild(h('option',{value:g.id},g.name)); gSel.value=state.filters.ucGroup||'all';
+  const groups=Object.values(state.data.ucGroups||{}).sort((a,b)=>(a.name||a.id).localeCompare(b.name||b.id));
+  gSel.appendChild(h('option',{value:'all'},'Use case group: All')); for(const g of groups){const gLabel=g.name||g.id; gSel.appendChild(h('option',{value:g.id},gLabel)); } gSel.value=state.filters.ucGroup||'all';
   function rebuild(){ uSel.innerHTML=''; uSel.appendChild(h('option',{value:'all'},'Use case: All'));
-    if(state.filters.ucGroup!=='all'){ const g=state.data.ucGroups[state.filters.ucGroup]; for(const u of Object.values(g.useCases)) uSel.appendChild(h('option',{value:`${g.id}/${u.id}`},u.name)); }
-    else{ for(const g of Object.values(state.data.ucGroups)){ for(const u of Object.values(g.useCases)){ uSel.appendChild(h('option',{value:`${g.id}/${u.id}`},`${g.name} / ${u.name}`)); } } }
+    if(state.filters.ucGroup!=='all'){ const g=state.data.ucGroups[state.filters.ucGroup]; if(g){ const useCases=Object.values(g.useCases||{}).sort((a,b)=>(a.name||a.id).localeCompare(b.name||b.id)); for(const u of useCases){const label=u.name||u.id; uSel.appendChild(h('option',{value:`${g.id}/${u.id}`},label)); } } }
+    else{ for(const g of groups){ const gLabel=g.name||g.id; const useCases=Object.values(g.useCases||{}).sort((a,b)=>(a.name||a.id).localeCompare(b.name||b.id)); for(const u of useCases){const uLabel=u.name||u.id; uSel.appendChild(h('option',{value:`${g.id}/${u.id}`},`${gLabel} / ${uLabel}`)); } } }
     uSel.value=state.filters.useCase||'all';
   } rebuild(); gSel.onchange=()=>{ state.filters.ucGroup=gSel.value; state.filters.useCase='all'; rebuild(); render(); }; uSel.onchange=()=>{ state.filters.useCase=uSel.value; render(); };
   const bar=$('#orgbar'); bar.innerHTML=''; const all=h('div',{class:'org-chip'+(state.filters.org==='all'?' active':''),title:'Show all'},'All'); all.onclick=()=>{state.filters.org='all'; render();}; bar.appendChild(all);
@@ -112,18 +130,10 @@ function renderFilters(){
   $('#btn-uc-manager').onclick=()=> openUseCaseManager();
 }
 function openUseCaseManager(){
-  const m=$('#modal-ucm'); m.classList.add('show'); const b=$('#ucm-body'); b.innerHTML='';
-  const add=h('div',{class:'fieldset'}, h('div',{class:'grid'}, h('div',{},h('label',{},'Group ID'),h('input',{id:'ucm-gid',placeholder:'e.g., risk'})), h('div',{},h('label',{},'Display name'),h('input',{id:'ucm-gname',placeholder:'Risk'}))), h('div',{style:'text-align:right;margin-top:8px'}, h('button',{class:'btn primary',onclick:()=>{ const id=$('#ucm-gid').value.trim(); const name=$('#ucm-gname').value.trim()||id; if(!id) return; if(state.data.ucGroups[id]) return alert('exists'); state.data.ucGroups[id]={id,name,useCases:{}}; openUseCaseManager(); }}, 'Add group')));
-  b.appendChild(add);
-  for(const g of Object.values(state.data.ucGroups)){
-    const ul=h('ul',{}); for(const u of Object.values(g.useCases)){ ul.appendChild(h('li',{}, `${u.name} (${u.id}) `, h('button',{class:'btn',onclick:()=>{ if(confirm('Remove use case?')){ delete state.data.ucGroups[g.id].useCases[u.id]; openUseCaseManager(); } }}, 'Remove'))); }
-    const list=h('div',{class:'fieldset',style:'margin-top:8px'}, h('h4',{}, g.name), ul,
-      h('div',{class:'grid',style:'margin-top:8px'}, h('div',{},h('label',{},'Use case ID'), h('input',{id:`uc-${g.id}-id`,placeholder:'e.g., churn-predict'})), h('div',{},h('label',{},'Display name'), h('input',{id:`uc-${g.id}-name`,placeholder:'Churn Prediction'}))),
-      h('div',{style:'text-align:right;margin-top:6px'}, h('button',{class:'btn',onclick:()=>{ const id=$(`#uc-${g.id}-id`).value.trim(); const name=$(`#uc-${g.id}-name`).value.trim()||id; if(!id) return; state.data.ucGroups[g.id].useCases[id]={id,name,groupId:g.id}; openUseCaseManager(); }}, 'Add use case'))
-    );
-    b.appendChild(list);
-  }
-  $('#ucm-close').onclick=()=> m.classList.remove('show');
+  ensureStateData();
+  const m=$('#modal-ucm'); if(!m) return; m.classList.add('show');
+  const body=$('#ucm-body'); renderUseCaseManagerContent(body);
+  $('#ucm-close').onclick=()=>{ m.classList.remove('show'); };
 }
 function datasetMatchesFilters(ds){
   if(state.filters.useCase && state.filters.useCase!=='all'){ if(!ds.useCases?.includes(state.filters.useCase)) return false; }
@@ -158,13 +168,91 @@ function renderDomains(){
 function render(){ renderFilters(); renderDomains(); setStatus(`Version ${state.data.version} • ${Object.keys(state.data.datasets).length} datasets • Orgs: ${Object.keys(state.data.orgs).length}`); }
 /* Use-case multi dropdown with smart placement */
 function buildUseCaseMulti(container, selected){
-  container.innerHTML=''; const btn=h('button',{class:'btn',type:'button'}, 'Select use cases…'); const dd=h('div',{class:'uc-dropdown'}, btn, h('div',{class:'panel'})); const panel=dd.querySelector('.panel'); const sel=new Set(selected||[]);
-  function open(){ dd.classList.add('open'); const r=btn.getBoundingClientRect(); const spaceBelow=window.innerHeight - r.bottom; if(spaceBelow < 220){ panel.style.top='auto'; panel.style.bottom='calc(100% + 4px)'; } else { panel.style.bottom='auto'; panel.style.top='calc(100% + 4px)'; } document.addEventListener('click',onDoc,true); }
-  function close(){ dd.classList.remove('open'); document.removeEventListener('click',onDoc,true); }
+  ensureStateData();
+  container.innerHTML='';
+  const btn=h('button',{class:'btn',type:'button'},'Select use cases…');
+  const panel=h('div',{class:'panel'});
+  const dd=h('div',{class:'uc-dropdown'}, btn, panel);
+  const sel=new Set((selected||[]).filter(Boolean));
+
+  function updateButtonLabel(){
+    const count=sel.size;
+    if(!count){ btn.textContent='Select use cases…'; return; }
+    if(count===1){
+      const ref=sel.values().next().value;
+      const label=getUseCaseLabel(ref);
+      btn.textContent=label||'1 use case selected';
+      return;
+    }
+    btn.textContent=`${count} use cases selected`;
+  }
+
+  function renderOptions(){
+    panel.innerHTML='';
+    const valid=new Set();
+    const groups=Object.values(state.data.ucGroups||{}).sort((a,b)=>(a.name||a.id).localeCompare(b.name||b.id));
+    if(!groups.length){
+      panel.appendChild(h('div',{class:'empty'},'No use cases available. Manage them to add options.'));
+    }
+    for(const g of groups){
+      const gdiv=h('div',{class:'group'}, h('div',{class:'gtitle'}, g.name));
+      const useCases=Object.values(g.useCases||{}).sort((a,b)=>(a.name||a.id).localeCompare(b.name||b.id));
+      if(!useCases.length){
+        gdiv.appendChild(h('div',{class:'item empty'},'No use cases in this group yet.'));
+      }
+      for(const u of useCases){
+        const ref=`${g.id}/${u.id}`;
+        valid.add(ref);
+        const item=h('div',{class:'item'});
+        const input=h('input',{type:'checkbox'});
+        input.checked=sel.has(ref);
+        input.onchange=e=>{ if(e.target.checked){ sel.add(ref); } else { sel.delete(ref); } updateButtonLabel(); };
+        item.appendChild(input);
+        item.appendChild(h('span',{},u.name||u.id));
+        gdiv.appendChild(item);
+      }
+      panel.appendChild(gdiv);
+    }
+    for(const ref of Array.from(sel)){ if(!valid.has(ref)) sel.delete(ref); }
+    updateButtonLabel();
+  }
+
+  function open(){
+    dd.classList.add('open');
+    const r=btn.getBoundingClientRect();
+    const spaceBelow=window.innerHeight - r.bottom;
+    if(spaceBelow < 220){
+      panel.style.top='auto'; panel.style.bottom='calc(100% + 4px)';
+    } else {
+      panel.style.bottom='auto'; panel.style.top='calc(100% + 4px)';
+    }
+    document.addEventListener('click',onDoc,true);
+  }
+
+  function close(){
+    dd.classList.remove('open');
+    document.removeEventListener('click',onDoc,true);
+  }
+
   function onDoc(e){ if(!dd.contains(e.target)){ close(); } }
+
   btn.onclick=()=> dd.classList.contains('open') ? close() : open();
-  for(const g of Object.values(state.data.ucGroups)){ const gdiv=h('div',{class:'group'}, h('div',{class:'gtitle'}, g.name)); for(const u of Object.values(g.useCases)){ const ref=`${g.id}/${u.id}`; gdiv.appendChild(h('div',{class:'item'}, h('input',{type:'checkbox',checked:sel.has(ref),onchange:e=>{ if(e.target.checked) sel.add(ref); else sel.delete(ref); }}), h('span',{}, u.name))); } panel.appendChild(gdiv); }
-  container.appendChild(dd); return ()=> Array.from(sel);
+
+  function onUseCasesChanged(){
+    const wasOpen=dd.classList.contains('open');
+    renderOptions();
+    if(wasOpen) dd.classList.add('open');
+  }
+
+  document.addEventListener('tda:usecases-changed', onUseCasesChanged);
+
+  container.appendChild(dd);
+  renderOptions();
+
+  function destroy(){ close(); document.removeEventListener('tda:usecases-changed', onUseCasesChanged); }
+  function getSelected(){ return Array.from(sel); }
+  getSelected.destroy=destroy;
+  return getSelected;
 }
 
 function createMultiSelect(container,label,options,onAdd){
@@ -341,8 +429,9 @@ function openDatasetDetails(ds){
   if(preferredScope!=='all') setScope(preferredScope,true);
 
   const chosenUC = buildUseCaseMulti($('#dt-usecases'), draft.useCases);
-
-  function closeModal(){ m.classList.remove('show'); }
+  const onDismiss=()=>{ if(typeof chosenUC.destroy==='function'){ chosenUC.destroy(); } m.removeEventListener('tda:modal-dismiss', onDismiss); };
+  m.addEventListener('tda:modal-dismiss', onDismiss);
+  function closeModal(){ m.dispatchEvent(new CustomEvent('tda:modal-dismiss')); m.classList.remove('show'); }
 
   $('#dt-save').onclick=()=>{
     applyToDraft(currentScope);
@@ -387,8 +476,11 @@ function openAddDatasetModal(domainId){
   const ingestionMulti=createMultiSelect($('#add-ingestion'),'Ingestion',vocab.ingestions||[],v=>{ if(vocab.ingestions && !vocab.ingestions.includes(v)){ vocab.ingestions.push(v); ingestionMulti.syncOptions(vocab.ingestions); } });
   const frontendMulti=createMultiSelect($('#add-frontend'),'Frontend',vocab.frontends||[],v=>{ if(vocab.frontends && !vocab.frontends.includes(v)){ vocab.frontends.push(v); frontendMulti.syncOptions(vocab.frontends); } });
   const chosen=buildUseCaseMulti($('#add-usecases'),[]);
+  const onAddDismiss=()=>{ if(typeof chosen.destroy==='function'){ chosen.destroy(); } m.removeEventListener('tda:modal-dismiss', onAddDismiss); };
+  m.addEventListener('tda:modal-dismiss', onAddDismiss);
   const oc=$('#add-orgs'); oc.innerHTML=''; for(const o of Object.values(state.data.orgs)){ oc.appendChild(h('label',{}, h('input',{type:'checkbox',value:o.id}), ' ', o.name)); }
-  $('#add-cancel').onclick=()=> m.classList.remove('show');
+  function closeAddModal(){ m.dispatchEvent(new CustomEvent('tda:modal-dismiss')); m.classList.remove('show'); }
+  $('#add-cancel').onclick=closeAddModal;
   f.onsubmit=e=>{
     e.preventDefault();
     const id=(f.name.value||crypto.randomUUID()).replace(/\s+/g,'-').toLowerCase();
@@ -399,7 +491,7 @@ function openAddDatasetModal(domainId){
     ds.search=[ds.name,ds.description,ds.owner,ds.layer.storage.join(' '),ds.layer.ingestion.join(' '),ds.layer.frontend.join(' ')].join(' ').toLowerCase();
     for(const oid of ds.orgs){ ds.orgMeta[oid]={description:ds.description,owner:ds.owner,entries:ds.entries,measures:cloneMeasures(ds.measures),layer:cloneLayer(ds.layer)}; }
     state.data.datasets[id]=ds; const dom=state.data.domains.find(d=>d.id===domainId); if(dom) dom.sets.push(id);
-    m.classList.remove('show'); render();
+    closeAddModal(); render();
   };
 }
 
@@ -412,7 +504,22 @@ function openAddDomainModal(){
   f.onsubmit=e=>{e.preventDefault(); const domainName=(name?.value||'').trim(); let domainId=(idInput?.value||'').trim(); if(!domainName){alert('Domain name is required.'); name?.focus(); return;} domainId=slugify(domainId||domainName); if(!domainId){alert('Domain identifier is required.'); idInput?.focus(); return;} if(state.data.domains.some(d=>d.id===domainId)){alert('Domain identifier already exists.'); idInput?.focus(); return;} state.data.domains.push({id:domainId,name:domainName,sets:[]}); m.classList.remove('show'); render();};
 }
 /* File operations + CSV */
-async function openXML(){try{const[h]=await window.showOpenFilePicker({types:[{description:'XML',accept:{'text/xml':['.xml']}}]}); state.xmlHandle=h; const text=await (await h.getFile()).text(); state.xmlDoc=parseXML(text); state.data=loadModel(state.xmlDoc); render();}catch(e){if(e.name!=='AbortError')alert('Open failed: '+e.message)}}
+function isXMLFile(file){if(!file)return false;const type=(file.type||'').toLowerCase();if(type.includes('xml'))return true;const name=(file.name||'').toLowerCase();return name.endsWith('.xml');}
+async function ingestXMLText(text,{handle=null,name=''}={}){try{const doc=parseXML(text);state.xmlHandle=handle||null;state.xmlDoc=doc;state.data=loadModel(doc);state.filters={measure:null,ucGroup:'all',useCase:'all',org:'all',q:''};ensureStateData();cleanDatasetUseCaseRefs();render();if(name){setStatus(`Loaded ${name}`);}else{setStatus('Loaded XML');}return true;}catch(err){console.error(err);alert(`Failed to load XML${name?` (${name})`:''}: ${err.message}`);return false;}}
+async function ingestXMLFile(file,handle){if(!file)return false;const text=await file.text();const resolvedHandle=handle||null;const label=file.name||handle?.name||'';return ingestXMLText(text,{handle:resolvedHandle,name:label});}
+function triggerFilePickerFallback(){const input=$('#xml-file-input');if(input){input.value='';input.click();}else{alert('File picker not supported. Drag & drop an XML file instead.');}}
+function setupFileInput(){const input=$('#xml-file-input');if(!input)return;input.addEventListener('change',async e=>{const file=e.target.files?.[0];if(file){await ingestXMLFile(file,null);}input.value='';});}
+function setupDragAndDrop(){const overlay=$('#drop-overlay');const main=$('.main');if(!overlay||!main)return;let depth=0;const hasFiles=e=>Array.from(e.dataTransfer?.types||[]).includes('Files');const reset=()=>{depth=0;overlay.classList.remove('active');};
+  window.addEventListener('dragover',e=>{if(hasFiles(e))e.preventDefault();});
+  window.addEventListener('drop',e=>{if(hasFiles(e)){e.preventDefault();reset();}});
+  document.addEventListener('dragend',reset);
+  main.addEventListener('dragenter',e=>{if(!hasFiles(e))return;depth+=1;overlay.classList.add('active');e.preventDefault();});
+  main.addEventListener('dragover',e=>{if(!hasFiles(e))return;overlay.classList.add('active');e.preventDefault();});
+  main.addEventListener('dragleave',e=>{if(!hasFiles(e))return;depth=Math.max(0,depth-1);if(depth===0)overlay.classList.remove('active');});
+  main.addEventListener('drop',async e=>{if(!hasFiles(e))return;e.preventDefault();reset();const files=Array.from(e.dataTransfer?.files||[]);const file=files.find(isXMLFile);if(file){await ingestXMLFile(file,null);}else{alert('Please drop an XML file.');}});
+}
+async function openXML(){if(window.showOpenFilePicker){try{const[h]=await window.showOpenFilePicker({types:[{description:'XML',accept:{'text/xml':['.xml']}}]});if(!h)return;const file=await h.getFile();await ingestXMLFile(file,h);return;}catch(e){if(e.name==='AbortError')return;console.warn('showOpenFilePicker failed',e);}}
+  triggerFilePickerFallback();}
 async function saveXML(){if(!state.data) return alert('Nothing to save'); const prev=state.data.version||'v0000'; const ts=new Date().toISOString().replace(/[-:.]/g,'').slice(0,15); state.data.version='v'+ts; const xml=serializeModel(state.data); if(state.xmlHandle){const w=await state.xmlHandle.createWritable(); await w.write(xml); await w.close();} else { const h=await window.showSaveFilePicker({suggestedName:'tda-data.xml',types:[{description:'XML',accept:{'text/xml':['.xml']}}]}); state.xmlHandle=h; const w=await h.createWritable(); await w.write(xml); await w.close(); } setStatus(`Saved ${prev} → ${state.data.version}`);}
 function toCSVRows(m){
   const rows=[['orgId','domainId','domainName','datasetId','datasetName','description','owner','entries','quality','timeliness','accessibility','completeness','storage','ingestion','frontend','useCaseGroups','useCases']];
@@ -476,7 +583,8 @@ function csvString(rows){const q=v=>{v=(v??'').toString();return /[",\n\r]/.test
 async function exportCSV(){if(!state.data)return alert('Load or create data first.');const prev=state.data.version||'v0000';const newId='v'+new Date().toISOString().replace(/[-:.]/g,'').slice(0,15);const name=`tda-datasets.${prev}-to-${newId}.csv`;const blob=new Blob([csvString(toCSVRows(state.data))],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);setStatus(`Exported CSV: ${name}`)}
 /* Settings modal */
 function openSettings(){const m=$('#modal-settings'); m.classList.add('show'); const c=UI.data; if(!c) return; $('#bg-from').value=c.theme.background.from; $('#bg-to').value=c.theme.background.to; $('#accent').value=c.theme.background.accent; $('#cols').value=c.theme.layout.domainColumns; $('#stop-min').value=c.theme.heatmap[0]?.color||'#ff4d4f'; $('#stop-mid').value=c.theme.heatmap[1]?.color||'#ffd666'; $('#stop-max').value=c.theme.heatmap[c.theme.heatmap.length-1]?.color||'#52c41a'; $('#apply-theme').onclick=()=>{ c.theme.background.from=$('#bg-from').value; c.theme.background.to=$('#bg-to').value; c.theme.background.accent=$('#accent').value; c.theme.layout.domainColumns=Number($('#cols').value)||5; c.theme.heatmap=[{at:0,color:$('#stop-min').value},{at:50,color:$('#stop-mid').value},{at:100,color:$('#stop-max').value}]; applyTheme(c); setStatus('Applied theme'); m.classList.remove('show'); }; $('#open-config').onclick=async()=>{ await openUIConfig(); setStatus('Opened config'); }; $('#save-config').onclick=async()=>{ await saveUIConfig(); setStatus('Saved config'); };}
-async function boot(){await loadDefaultUIConfig(); try{const r=await fetch('./assets/sample-data.xml',{cache:'no-store'}); if(r.ok){const t=await r.text(); state.xmlDoc=parseXML(t); state.data=loadModel(state.xmlDoc); render(); }}catch(e){ setStatus('Failed to load sample-data.xml'); }
+async function boot(){await loadDefaultUIConfig(); setupFileInput(); setupDragAndDrop(); let loaded=false; try{const r=await fetch('./assets/sample-data.xml',{cache:'no-store'}); if(r.ok){const t=await r.text(); await ingestXMLText(t,{name:'sample-data.xml'}); state.xmlHandle=null; loaded=true; }}catch(e){console.error(e); }
+  if(!loaded){ ensureStateData(); state.filters={measure:null,ucGroup:'all',useCase:'all',org:'all',q:''}; render(); setStatus('Failed to load sample-data.xml'); }
   $('#btn-open').onclick=openXML; $('#btn-save').onclick=saveXML; const addDomain=$('#btn-add-domain'); if(addDomain) addDomain.onclick=openAddDomainModal; $('#fab-settings').onclick=openSettings; $('#btn-settings').onclick=openSettings; }
 document.addEventListener('DOMContentLoaded',boot);
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const open=Array.from(document.querySelectorAll('.modal-backdrop.show')); const last=open.pop(); if(last) last.classList.remove('show'); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const open=Array.from(document.querySelectorAll('.modal-backdrop.show')); const last=open.pop(); if(last){ last.dispatchEvent(new CustomEvent('tda:modal-dismiss')); last.classList.remove('show'); } } });
