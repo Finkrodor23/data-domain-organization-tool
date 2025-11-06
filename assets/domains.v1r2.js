@@ -3,7 +3,19 @@ const $=(s,c=document)=>c.querySelector(s), $$=(s,c=document)=>Array.from(c.quer
 const state={xmlHandle:null,xmlDoc:null,data:null,filters:{measure:null,ucGroup:'all',useCase:'all',org:'all',q:''}};
 function h(t,a={},...ch){const e=document.createElement(t);for(const[k,v]of Object.entries(a||{})){if(k==='class')e.className=v;else if(k==='style')e.setAttribute('style',v);else if(k.startsWith('on')&&typeof v==='function')e.addEventListener(k.substring(2),v);else e.setAttribute(k,v)}for(const c of ch){if(c==null)continue;if(typeof c==='string')e.appendChild(document.createTextNode(c));else e.appendChild(c)}return e}
 function parseXML(x){const d=new DOMParser().parseFromString(x,'application/xml');const err=d.querySelector('parsererror');if(err){const msg=(err.textContent||'Invalid XML').replace(/\s+/g,' ').trim();throw new Error(msg||'Invalid XML document');}return d}
-function ensureStateData(){if(!state.data){state.data={version:'v0000',orgs:{},ucGroups:{},domains:[],datasets:{}};}else{state.data.orgs=state.data.orgs||{};state.data.ucGroups=state.data.ucGroups||{};state.data.domains=state.data.domains||[];state.data.datasets=state.data.datasets||{};}}
+function ensureStateData(){
+  if(!state.data){
+    state.data={version:'v0000',orgs:{},ucGroups:{},domains:[],datasets:{}};
+  }
+  state.data.orgs=state.data.orgs||{};
+  state.data.ucGroups=state.data.ucGroups||{};
+  state.data.domains=state.data.domains||[];
+  state.data.datasets=state.data.datasets||{};
+  for(const dom of state.data.domains){
+    if(!Array.isArray(dom.sets)) dom.sets=[];
+    if(typeof dom.icon!=='string') dom.icon='';
+  }
+}
 function getValidUseCaseRefs(){ensureStateData();const refs=new Set;for(const g of Object.values(state.data.ucGroups||{})){for(const u of Object.values(g.useCases||{})){refs.add(`${g.id}/${u.id}`);}}return refs}
 function cleanDatasetUseCaseRefs(){if(!state.data)return;const valid=getValidUseCaseRefs();for(const ds of Object.values(state.data.datasets||{})){if(Array.isArray(ds.useCases)){ds.useCases=ds.useCases.filter(ref=>valid.has(ref));}else if(ds.useCases){ds.useCases=[];}}if(state.filters){if(state.filters.useCase&&state.filters.useCase!=='all'&&!valid.has(state.filters.useCase)){state.filters.useCase='all';}if(state.filters.ucGroup&&state.filters.ucGroup!=='all'&&!state.data.ucGroups[state.filters.ucGroup]){state.filters.ucGroup='all';}}}
 function notifyUseCasesChanged(){if(!state.data)return;cleanDatasetUseCaseRefs();document.dispatchEvent(new CustomEvent('tda:usecases-changed'));render();}
@@ -20,7 +32,7 @@ function loadModel(doc){
   const ucGroups={}; doc.querySelectorAll('useCaseGroups > group').forEach(g=>{const gid=xmlAttr(g,'id');ucGroups[gid]={id:gid,name:xmlAttr(g,'name')||gid,useCases:{}};g.querySelectorAll('useCase').forEach(u=>{const uid=xmlAttr(u,'id');ucGroups[gid].useCases[uid]={id:uid,name:xmlAttr(u,'name')||uid,groupId:gid}})});
   const domains=[], datasets={};
   doc.querySelectorAll('domains > domain').forEach(d=>{
-    const dom={id:xmlAttr(d,'id'),name:xmlAttr(d,'name')||xmlAttr(d,'id'),sets:[]};
+    const dom={id:xmlAttr(d,'id'),name:xmlAttr(d,'name')||xmlAttr(d,'id'),icon:xmlAttr(d,'icon','').trim(),sets:[]};
     d.querySelectorAll(':scope > set').forEach(s=>{
       const id=xmlAttr(s,'id')||xmlText(s,'name').toLowerCase().replace(/\s+/g,'-');
       const layer=s.querySelector('layer');
@@ -71,7 +83,8 @@ function serializeModel(m){
   for(const g of Object.values(m.ucGroups)){ out += `${i(2)}<group id="${e(g.id)}" name="${e(g.name)}">\n`; for(const u of Object.values(g.useCases)){ out += `${i(3)}<useCase id="${e(u.id)}" name="${e(u.name)}"/>\n`; } out += `${i(2)}</group>\n`; }
   out += `${i(1)}</useCaseGroups>\n\n${i(1)}<domains>\n`;
   for(const d of m.domains){
-    out += `${i(2)}<domain id="${e(d.id)}" name="${e(d.name)}">\n`;
+    const iconAttr=(d.icon&&d.icon.trim())?` icon="${e(d.icon.trim())}"`:'';
+    out += `${i(2)}<domain id="${e(d.id)}" name="${e(d.name)}"${iconAttr}>\n`;
     for(const sid of d.sets){ const s=m.datasets[sid]; if(!s) continue;
       out += `${i(3)}<set id="${e(s.id)}">\n${i(4)}<name>${e(s.name)}</name>\n${i(4)}<description>${e(s.description||'')}</description>\n${i(4)}<owner>${e(s.owner||'')}</owner>\n${i(4)}<entries>${Number(s.entries||0)}</entries>\n`;
       out += `${i(4)}<measures quality="${Number(s.measures.quality||0)}" timeliness="${Number(s.measures.timeliness||0)}" accessibility="${Number(s.measures.accessibility||0)}" completeness="${Number(s.measures.completeness||0)}"/>\n`;
@@ -142,10 +155,28 @@ function datasetMatchesFilters(ds){
   if(state.filters.q){ const q=state.filters.q; if(!(ds.search.includes(q) || (ds.name||'').toLowerCase().includes(q))) return false; }
   return true;
 }
+function createDomainIconElement(fileName){
+  const name=(fileName||'').trim();
+  if(!name) return null;
+  const img=document.createElement('img');
+  img.className='domain-icon';
+  img.alt='';
+  img.style.display='none';
+  img.addEventListener('load',()=>{img.style.display='inline-block';});
+  img.addEventListener('error',()=>{img.remove();});
+  img.src=`./assets/icons/${name}`;
+  return img;
+}
 function renderDomains(){
   const w=$('#domains'); w.innerHTML='';
   for(const dom of state.data.domains){
-    const header=h('header',{}, h('h3',{}, dom.name), h('button',{class:'btn add',onclick:()=>openAddDatasetModal(dom.id)}, '+ Dataset'));
+    const title=h('h3',{});
+    const iconEl=createDomainIconElement(dom.icon);
+    if(iconEl) title.appendChild(iconEl);
+    title.appendChild(document.createTextNode(dom.name||dom.id));
+    const settingsBtn=h('button',{class:'btn ghost icon domain-settings',title:'Domain settings',onclick:()=>openDomainSettings(dom.id)},'⚙');
+    const addBtn=h('button',{class:'btn add',onclick:()=>openAddDatasetModal(dom.id)}, '+ Dataset');
+    const header=h('header',{}, title, h('div',{class:'actions'}, settingsBtn, addBtn));
     const list=h('div',{class:'list'}); const box=h('section',{class:'domain'}, header, list);
     for(const sid of dom.sets){
       const ds=state.data.datasets[sid]; if(!ds) continue; if(!datasetMatchesFilters(ds)) continue;
@@ -163,6 +194,70 @@ function renderDomains(){
       dbox.appendChild(badges); list.appendChild(dbox);
     }
     w.appendChild(box);
+  }
+}
+let domainSettingsDomainId=null;
+function closeDomainSettingsModal(){
+  const modal=$('#modal-domain-settings');
+  if(!modal) return;
+  modal.dispatchEvent(new CustomEvent('tda:modal-dismiss'));
+  modal.classList.remove('show');
+  domainSettingsDomainId=null;
+}
+function setupDomainSettingsModal(){
+  const modal=$('#modal-domain-settings');
+  if(!modal || modal.dataset.init==='1') return;
+  modal.dataset.init='1';
+  const form=$('#form-domain-settings');
+  const cancel=$('#domain-settings-cancel');
+  if(cancel) cancel.onclick=()=>closeDomainSettingsModal();
+  modal.addEventListener('tda:modal-dismiss',()=>{
+    domainSettingsDomainId=null;
+    form?.reset();
+  });
+  if(form){
+    form.onsubmit=e=>{
+      e.preventDefault();
+      if(!domainSettingsDomainId) return;
+      const dom=state.data?.domains?.find(d=>d.id===domainSettingsDomainId);
+      if(!dom) return;
+      const nameInput=$('#domain-settings-name');
+      const iconInput=$('#domain-settings-icon');
+      const nextName=(nameInput?.value||'').trim();
+      if(!nextName){
+        alert('Domain name is required.');
+        nameInput?.focus();
+        return;
+      }
+      let iconValue=(iconInput?.value||'').trim();
+      if(iconValue){
+        iconValue=iconValue.split(/[\/]/).pop();
+      }
+      dom.name=nextName;
+      dom.icon=iconValue;
+      closeDomainSettingsModal();
+      render();
+    };
+  }
+}
+function openDomainSettings(domainId){
+  ensureStateData();
+  const modal=$('#modal-domain-settings');
+  if(!modal) return;
+  setupDomainSettingsModal();
+  const dom=state.data.domains.find(d=>d.id===domainId);
+  if(!dom) return;
+  domainSettingsDomainId=domainId;
+  const nameInput=$('#domain-settings-name');
+  const iconInput=$('#domain-settings-icon');
+  if(nameInput) nameInput.value=dom.name||dom.id||'';
+  if(iconInput) iconInput.value=dom.icon||'';
+  modal.classList.add('show');
+  if(nameInput){
+    requestAnimationFrame(()=>{
+      nameInput.focus();
+      nameInput.select();
+    });
   }
 }
 function render(){ renderFilters(); renderDomains(); setStatus(`Version ${state.data.version} • ${Object.keys(state.data.datasets).length} datasets • Orgs: ${Object.keys(state.data.orgs).length}`); }
@@ -501,7 +596,7 @@ function openAddDomainModal(){
   const name=$('#domain-name'), idInput=$('#domain-id'); if(name)name.value=''; if(idInput)idInput.value='';
   m.classList.add('show'); if(name)name.focus();
   const cancel=$('#add-domain-cancel'); if(cancel)cancel.onclick=()=>m.classList.remove('show');
-  f.onsubmit=e=>{e.preventDefault(); const domainName=(name?.value||'').trim(); let domainId=(idInput?.value||'').trim(); if(!domainName){alert('Domain name is required.'); name?.focus(); return;} domainId=slugify(domainId||domainName); if(!domainId){alert('Domain identifier is required.'); idInput?.focus(); return;} if(state.data.domains.some(d=>d.id===domainId)){alert('Domain identifier already exists.'); idInput?.focus(); return;} state.data.domains.push({id:domainId,name:domainName,sets:[]}); m.classList.remove('show'); render();};
+  f.onsubmit=e=>{e.preventDefault(); const domainName=(name?.value||'').trim(); let domainId=(idInput?.value||'').trim(); if(!domainName){alert('Domain name is required.'); name?.focus(); return;} domainId=slugify(domainId||domainName); if(!domainId){alert('Domain identifier is required.'); idInput?.focus(); return;} if(state.data.domains.some(d=>d.id===domainId)){alert('Domain identifier already exists.'); idInput?.focus(); return;} state.data.domains.push({id:domainId,name:domainName,icon:'',sets:[]}); m.classList.remove('show'); render();};
 }
 /* File operations + CSV */
 function isXMLFile(file){if(!file)return false;const type=(file.type||'').toLowerCase();if(type.includes('xml'))return true;const name=(file.name||'').toLowerCase();return name.endsWith('.xml');}
@@ -583,7 +678,7 @@ function csvString(rows){const q=v=>{v=(v??'').toString();return /[",\n\r]/.test
 async function exportCSV(){if(!state.data)return alert('Load or create data first.');const prev=state.data.version||'v0000';const newId='v'+new Date().toISOString().replace(/[-:.]/g,'').slice(0,15);const name=`tda-datasets.${prev}-to-${newId}.csv`;const blob=new Blob([csvString(toCSVRows(state.data))],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);setStatus(`Exported CSV: ${name}`)}
 /* Settings modal */
 function openSettings(){const m=$('#modal-settings'); m.classList.add('show'); const c=UI.data; if(!c) return; $('#bg-from').value=c.theme.background.from; $('#bg-to').value=c.theme.background.to; $('#accent').value=c.theme.background.accent; $('#cols').value=c.theme.layout.domainColumns; $('#stop-min').value=c.theme.heatmap[0]?.color||'#ff4d4f'; $('#stop-mid').value=c.theme.heatmap[1]?.color||'#ffd666'; $('#stop-max').value=c.theme.heatmap[c.theme.heatmap.length-1]?.color||'#52c41a'; $('#apply-theme').onclick=()=>{ c.theme.background.from=$('#bg-from').value; c.theme.background.to=$('#bg-to').value; c.theme.background.accent=$('#accent').value; c.theme.layout.domainColumns=Number($('#cols').value)||5; c.theme.heatmap=[{at:0,color:$('#stop-min').value},{at:50,color:$('#stop-mid').value},{at:100,color:$('#stop-max').value}]; applyTheme(c); setStatus('Applied theme'); m.classList.remove('show'); }; $('#open-config').onclick=async()=>{ await openUIConfig(); setStatus('Opened config'); }; $('#save-config').onclick=async()=>{ await saveUIConfig(); setStatus('Saved config'); };}
-async function boot(){await loadDefaultUIConfig(); setupFileInput(); setupDragAndDrop(); let loaded=false; try{const r=await fetch('./assets/sample-data.xml',{cache:'no-store'}); if(r.ok){const t=await r.text(); await ingestXMLText(t,{name:'sample-data.xml'}); state.xmlHandle=null; loaded=true; }}catch(e){console.error(e); }
+async function boot(){await loadDefaultUIConfig(); setupFileInput(); setupDragAndDrop(); setupDomainSettingsModal(); let loaded=false; try{const r=await fetch('./assets/sample-data.xml',{cache:'no-store'}); if(r.ok){const t=await r.text(); await ingestXMLText(t,{name:'sample-data.xml'}); state.xmlHandle=null; loaded=true; }}catch(e){console.error(e); }
   if(!loaded){ ensureStateData(); state.filters={measure:null,ucGroup:'all',useCase:'all',org:'all',q:''}; render(); setStatus('Failed to load sample-data.xml'); }
   $('#btn-open').onclick=openXML; $('#btn-save').onclick=saveXML; const addDomain=$('#btn-add-domain'); if(addDomain) addDomain.onclick=openAddDomainModal; $('#fab-settings').onclick=openSettings; $('#btn-settings').onclick=openSettings; }
 document.addEventListener('DOMContentLoaded',boot);

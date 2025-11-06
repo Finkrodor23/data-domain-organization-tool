@@ -86,6 +86,30 @@
     </div>
   </div>
 
+  <!-- Domain Settings Modal -->
+  <div class="modal-backdrop" id="modal-domain-settings">
+    <div class="modal">
+      <h4>Domain settings</h4>
+      <form id="form-domain-settings">
+        <div class="form-grid">
+          <div class="field">
+            <label for="domain-settings-name">Domain name</label>
+            <input id="domain-settings-name" required />
+          </div>
+          <div class="field">
+            <label for="domain-settings-icon">Icon filename</label>
+            <input id="domain-settings-icon" placeholder="finance.png" />
+            <small class="hint">Provide the icon file name (including extension) located in assets/icons/.</small>
+          </div>
+        </div>
+        <footer>
+          <button type="button" class="btn" id="domain-settings-cancel">Cancel</button>
+          <button type="submit" class="btn primary">Save changes</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
   <!-- Dataset Details Modal (editable, org-specific) -->
   <div class="modal-backdrop" id="modal-details">
     <div class="modal">

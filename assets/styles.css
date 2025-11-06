@@ -38,7 +38,11 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 @media(max-width:620px){.grid-domains{grid-template-columns:1fr}}
 .domain{border:1px solid var(--line);border-radius:16px;background:var(--bg2);overflow:hidden;display:flex;flex-direction:column;min-height:260px}
 .domain header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0))}
-.domain header h3{font-size:14px;margin:0}.domain header .add{border:1px dashed rgba(0,188,102,.5);color:#c6ffe5;background:rgba(0,188,102,.06)}
+.domain header h3{margin:0;display:flex;align-items:center;gap:8px;font-size:14px}
+.domain header .actions{display:flex;align-items:center;gap:6px}
+.domain header .btn.domain-settings{min-width:0;padding:6px 8px;font-size:16px;line-height:1}
+.domain header .add{border:1px dashed rgba(0,188,102,.5);color:#c6ffe5;background:rgba(0,188,102,.06)}
+.domain-icon{width:18px;height:18px;object-fit:contain}
 .domain .list{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px;align-items:start}
 .dataset{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:10px;display:flex;flex-direction:column;gap:8px;min-height:92px;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:border-color .15s ease,transform .06s ease,box-shadow .15s ease}
 .dataset:hover{border-color:rgba(255,255,255,.35);box-shadow:0 8px 26px rgba(0,0,0,.25);transform:translateY(-1px)}
@@ -72,6 +76,7 @@ footer .actions{display:flex;gap:8px;align-items:center}.small{font-size:12px;co
 .modal input,.modal textarea,.modal select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:8px 10px;border-radius:10px;outline:none;font:inherit}
 .modal textarea{resize:vertical}
 .modal footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.modal .hint{display:block;margin-top:6px;font-size:11px;color:var(--muted)}
 .modal .section-title{font-size:12px;color:var(--muted);margin:18px 0 6px;text-transform:uppercase;letter-spacing:.04em}
 .modal .vlist{display:flex;flex-direction:column;gap:6px}
 .modal-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
