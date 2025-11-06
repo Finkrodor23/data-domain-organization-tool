@@ -147,6 +147,7 @@ function renderDomains(){
   for(const dom of state.data.domains){
     const header=h('header',{}, h('h3',{}, dom.name), h('button',{class:'btn add',onclick:()=>openAddDatasetModal(dom.id)}, '+ Dataset'));
     const list=h('div',{class:'list'}); const box=h('section',{class:'domain'}, header, list);
+    let dsCount=0;
     for(const sid of dom.sets){
       const ds=state.data.datasets[sid]; if(!ds) continue; if(!datasetMatchesFilters(ds)) continue;
       const dbox=h('div',{class:'dataset',onclick:()=>openDatasetDetails(ds)}, h('div',{class:'title'}, ds.name||ds.id), h('div',{class:'meta'}, ds.description||''));
@@ -160,8 +161,9 @@ function renderDomains(){
         b.onclick=e=>{e.stopPropagation(); if(present){ if(confirm(`Remove dataset "${ds.name}" from org "${o.name}"?`)){ ds.orgs=ds.orgs.filter(x=>x!==oid); delete ds.orgMeta?.[oid]; render(); } } else { if(confirm(`Add dataset "${ds.name}" to org "${o.name}"?`)){ ds.orgs=ds.orgs||[]; if(!ds.orgs.includes(oid)) ds.orgs.push(oid); ds.orgMeta=ds.orgMeta||{}; ds.orgMeta[oid]=ds.orgMeta[oid]||{description:ds.description,owner:ds.owner,entries:ds.entries,measures:cloneMeasures(ds.measures),layer:cloneLayer(ds.layer)}; render(); } } };
         badges.appendChild(b);
       }
-      dbox.appendChild(badges); list.appendChild(dbox);
+      dbox.appendChild(badges); list.appendChild(dbox); dsCount+=1;
     }
+    if(dsCount>4){ list.classList.add('scrollable'); }
     w.appendChild(box);
   }
 }
@@ -376,7 +378,7 @@ function openDatasetDetails(ds){
   function updateScopeAction(){
     scopeAction.innerHTML='';
     if(currentScope==='all'){
-      scopeAction.appendChild(h('span',{},'Editing the base dataset values. These apply to every organization unless overridden.'));
+      scopeAction.appendChild(h('span',{},'Editing the base dataset values. These changes will apply to every organization.'));
       return;
     }
     const org=state.data.orgs[currentScope]; if(!org) return;
@@ -476,22 +478,62 @@ function openAddDatasetModal(domainId){
   const ingestionMulti=createMultiSelect($('#add-ingestion'),'Ingestion',vocab.ingestions||[],v=>{ if(vocab.ingestions && !vocab.ingestions.includes(v)){ vocab.ingestions.push(v); ingestionMulti.syncOptions(vocab.ingestions); } });
   const frontendMulti=createMultiSelect($('#add-frontend'),'Frontend',vocab.frontends||[],v=>{ if(vocab.frontends && !vocab.frontends.includes(v)){ vocab.frontends.push(v); frontendMulti.syncOptions(vocab.frontends); } });
   const chosen=buildUseCaseMulti($('#add-usecases'),[]);
-  const onAddDismiss=()=>{ if(typeof chosen.destroy==='function'){ chosen.destroy(); } m.removeEventListener('tda:modal-dismiss', onAddDismiss); };
+  const selectedOrgs=new Set();
+  const orgContainer=$('#add-orgs');
+  orgContainer.innerHTML='';
+  const orgValues=Object.values(state.data.orgs);
+  if(!orgValues.length){
+    orgContainer.appendChild(h('span',{class:'small'},'No organizations available. Add one from the main view.'));
+  }
+  for(const o of orgValues){
+    const chip=h('button',{class:'scope-chip',type:'button'}, o.name);
+    chip.onclick=()=>{
+      if(selectedOrgs.has(o.id)){ selectedOrgs.delete(o.id); }
+      else { selectedOrgs.add(o.id); }
+      chip.classList.toggle('active', selectedOrgs.has(o.id));
+    };
+    orgContainer.appendChild(chip);
+  }
+  const submitBtn=f.querySelector('button[type=submit]');
+  const nameInput=f.name;
+  const nameError=$('#add-name-error');
+  function nameExists(value){
+    const candidate=(value||'').trim().toLowerCase();
+    if(!candidate) return false;
+    return Object.values(state.data.datasets||{}).some(ds=>(ds.name||'').trim().toLowerCase()===candidate);
+  }
+  function updateNameState(){
+    const trimmed=nameInput.value.trim();
+    const duplicate=nameExists(trimmed);
+    if(duplicate){
+      nameError.textContent='A dataset with this name already exists.';
+    } else {
+      nameError.textContent='';
+    }
+    submitBtn.disabled=!trimmed || duplicate;
+  }
+  nameInput.addEventListener('input', updateNameState);
+  updateNameState();
+  const onAddDismiss=()=>{ if(typeof chosen.destroy==='function'){ chosen.destroy(); } nameInput.removeEventListener('input', updateNameState); m.removeEventListener('tda:modal-dismiss', onAddDismiss); };
   m.addEventListener('tda:modal-dismiss', onAddDismiss);
-  const oc=$('#add-orgs'); oc.innerHTML=''; for(const o of Object.values(state.data.orgs)){ oc.appendChild(h('label',{}, h('input',{type:'checkbox',value:o.id}), ' ', o.name)); }
   function closeAddModal(){ m.dispatchEvent(new CustomEvent('tda:modal-dismiss')); m.classList.remove('show'); }
   $('#add-cancel').onclick=closeAddModal;
   f.onsubmit=e=>{
     e.preventDefault();
-    const id=(f.name.value||crypto.randomUUID()).replace(/\s+/g,'-').toLowerCase();
-    const ds={ id, domainId, name:f.name.value.trim(), description:f.description.value.trim(), owner:f.owner.value.trim(), entries:Number(f.entries.value||0),
+    const trimmedName=nameInput.value.trim();
+    if(!trimmedName || nameExists(trimmedName)){ updateNameState(); return; }
+    let id=slugify(trimmedName);
+    if(!id){ id=crypto.randomUUID(); }
+    if(state.data.datasets[id]){ alert('Dataset identifier already exists. Please choose a different name.'); return; }
+    const ds={ id, domainId, name:trimmedName, description:f.description.value.trim(), owner:f.owner.value.trim(), entries:Number(f.entries.value||0),
       measures:{quality:Number(f.quality.value||0), timeliness:Number(f.timeliness.value||0), accessibility:Number(f.accessibility.value||0), completeness:Number(f.completeness.value||0)},
       layer:{ storage:storageMulti.get(), ingestion:ingestionMulti.get(), frontend:frontendMulti.get() },
-      orgs: $$('input[type=checkbox]', oc).filter(x=>x.checked).map(x=>x.value), useCases: chosen(), orgMeta:{} };
+      orgs: Array.from(selectedOrgs), useCases: chosen(), orgMeta:{} };
     ds.search=[ds.name,ds.description,ds.owner,ds.layer.storage.join(' '),ds.layer.ingestion.join(' '),ds.layer.frontend.join(' ')].join(' ').toLowerCase();
     for(const oid of ds.orgs){ ds.orgMeta[oid]={description:ds.description,owner:ds.owner,entries:ds.entries,measures:cloneMeasures(ds.measures),layer:cloneLayer(ds.layer)}; }
     state.data.datasets[id]=ds; const dom=state.data.domains.find(d=>d.id===domainId); if(dom) dom.sets.push(id);
-    closeAddModal(); render();
+    closeAddModal();
+    render();
   };
 }
 
